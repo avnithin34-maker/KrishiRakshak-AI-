@@ -1,0 +1,6 @@
+{
+  "name": "KrishiRakshak AI",
+  "description": "Smart Farming Assistant for Karnataka farmers to identify crop diseases, get safe crop-protection advice, and navigate government agricultural schemes in Kannada and English.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

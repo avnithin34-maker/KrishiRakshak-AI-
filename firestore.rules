@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default Deny All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // User profile document
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(userId)
+        && request.resource.data.keys().hasAll(['uid'])
+        && request.resource.data.uid == userId;
+      allow update: if isOwner(userId) && isValidId(userId)
+        && request.resource.data.uid == userId;
+      allow delete: if isOwner(userId);
+
+      // Crop diagnosis history subcollection
+      match /cropHistory/{recordId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(recordId)
+          && request.resource.data.keys().hasAll(['id', 'userId', 'crop', 'possibleCondition', 'timestamp'])
+          && request.resource.data.userId == userId
+          && request.resource.data.id is string && request.resource.data.id.size() <= 128
+          && request.resource.data.crop is string && request.resource.data.crop.size() <= 50
+          && request.resource.data.possibleCondition is string && request.resource.data.possibleCondition.size() <= 200;
+        allow update: if isOwner(userId) && isValidId(recordId)
+          && request.resource.data.userId == userId;
+        allow delete: if isOwner(userId) && isValidId(recordId);
+      }
+
+      // Saved schemes subcollection
+      match /savedSchemes/{schemeId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(schemeId)
+          && request.resource.data.keys().hasAll(['schemeId', 'userId', 'savedAt'])
+          && request.resource.data.userId == userId
+          && request.resource.data.schemeId is string && request.resource.data.schemeId.size() <= 100;
+        allow update: if isOwner(userId) && isValidId(schemeId)
+          && request.resource.data.userId == userId;
+        allow delete: if isOwner(userId) && isValidId(schemeId);
+      }
+    }
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Farmer user profile document",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 150 },
+        "email": { "type": "string", "maxLength": 150 },
+        "photoURL": { "type": "string", "maxLength": 500 },
+        "district": { "type": "string", "maxLength": 100 },
+        "taluk": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid"]
+    },
+    "CropHistoryRecord": {
+      "title": "CropHistoryRecord",
+      "description": "Crop diagnosis screening record saved by the farmer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "crop": { "type": "string", "maxLength": 50 },
+        "possibleCondition": { "type": "string", "maxLength": 200 },
+        "conditionKannada": { "type": "string", "maxLength": 200 },
+        "isConclusive": { "type": "boolean" },
+        "imageQualityAssessment": { "type": "string", "maxLength": 300 },
+        "expertGuidance": { "type": "string", "maxLength": 500 },
+        "limitations": { "type": "string", "maxLength": 500 },
+        "farmerNotes": { "type": "string", "maxLength": 500 },
+        "timestamp": { "type": "string" },
+        "isDemoFallback": { "type": "boolean" },
+        "source": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["id", "userId", "crop", "possibleCondition", "timestamp"]
+    },
+    "SavedScheme": {
+      "title": "SavedScheme",
+      "description": "Saved government scheme bookmark",
+      "type": "object",
+      "properties": {
+        "schemeId": { "type": "string", "maxLength": 100 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "officialNameEn": { "type": "string", "maxLength": 250 },
+        "officialNameKn": { "type": "string", "maxLength": 250 },
+        "savedAt": { "type": "string" }
+      },
+      "required": ["schemeId", "userId", "savedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Stores user profile information"
+    },
+    "/users/{userId}/cropHistory/{recordId}": {
+      "schema": "CropHistoryRecord",
+      "description": "Stores individual crop diagnosis history per user"
+    },
+    "/users/{userId}/savedSchemes/{schemeId}": {
+      "schema": "SavedScheme",
+      "description": "Stores saved government scheme bookmarks per user"
+    }
+  }
+}
