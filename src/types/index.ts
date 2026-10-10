@@ -112,3 +112,67 @@ export interface SampleDemoCase {
   mockResult: Omit<DiagnosisResult, 'id' | 'timestamp'>;
   sampleSvg: string; // High-fidelity visual preview
 }
+
+export type TrackerCategory = 'irrigation' | 'fertilizer' | 'pest_scouting' | 'weeding' | 'harvest' | 'general';
+
+export interface GrowthStageMilestone {
+  id: string;
+  stageNameEn: string;
+  stageNameKn: string;
+  dayStart: number; // Days after sowing/planting
+  dayEnd: number;
+  stageCategory: 'germination' | 'vegetative' | 'flowering' | 'fruiting' | 'maturity' | 'harvest';
+  descriptionEn: string;
+  descriptionKn: string;
+  recommendedTasksEn: string[];
+  recommendedTasksKn: string[];
+  pestAlertEn: string;
+  pestAlertKn: string;
+  isHarvestStage?: boolean;
+}
+
+export interface CropGrowthTemplate {
+  cropId: string;
+  cropNameEn: string;
+  cropNameKn: string;
+  emoji: string;
+  scientificName: string;
+  durationDays: number;
+  seasonKarnatakaEn: string;
+  seasonKarnatakaKn: string;
+  recommendedMethod: 'direct_seed' | 'transplant';
+  stages: GrowthStageMilestone[];
+  harvestTipsEn: string[];
+  harvestTipsKn: string[];
+  maturityIndicatorsEn: string[];
+  maturityIndicatorsKn: string[];
+}
+
+export interface TrackerReminder {
+  id: string;
+  titleEn: string;
+  titleKn: string;
+  category: TrackerCategory;
+  targetDate: string; // YYYY-MM-DD
+  dayOffset: number; // DAS
+  stageId: string;
+  isCompleted: boolean;
+  notes?: string;
+}
+
+export interface CropTrackerRecord {
+  id: string;
+  userId?: string;
+  cropId: string;
+  cropNameEn: string;
+  cropNameKn: string;
+  emoji: string;
+  plotName: string;
+  plantingDate: string; // YYYY-MM-DD
+  varietyOrType?: string;
+  areaAcreage?: string;
+  method: 'direct_seed' | 'transplant';
+  notes?: string;
+  createdAt: string;
+  reminders: TrackerReminder[];
+}

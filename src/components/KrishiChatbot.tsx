@@ -15,10 +15,16 @@ import {
   Cpu,
   RefreshCw,
   HelpCircle,
-  ShieldCheck
+  ShieldCheck,
+  Mic,
+  MicOff,
+  Volume2,
+  Languages,
+  AlertCircle
 } from 'lucide-react';
 import { Language } from '../types';
 import { translations } from '../i18n/translations';
+import { useSpeechToText, SpeechLanguage } from '../hooks/useSpeechToText';
 
 interface ChatMessage {
   id: string;
@@ -58,6 +64,60 @@ export const KrishiChatbot: React.FC<KrishiChatbotProps> = ({ language, isOpen, 
   const [enableMaps, setEnableMaps] = useState<boolean>(true);
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
 
+  // Web Speech API Voice Recognition
+  const [speechLanguage, setSpeechLanguage] = useState<SpeechLanguage>(
+    language === 'kn' ? 'kn-IN' : 'en-IN'
+  );
+  const [speechNotice, setSpeechNotice] = useState<string | null>(null);
+
+  // Synchronize default speech recognition dialect when UI language switches
+  useEffect(() => {
+    setSpeechLanguage(language === 'kn' ? 'kn-IN' : 'en-IN');
+  }, [language]);
+
+  const {
+    isListening,
+    isSupported: isSpeechSupported,
+    errorMessage: speechError,
+    startListening,
+    stopListening,
+    resetTranscript,
+  } = useSpeechToText({
+    language: speechLanguage,
+    onTranscriptChange: (text, isFinal) => {
+      if (text) {
+        setInputPrompt(text);
+      }
+    },
+    onError: (err) => {
+      if (err === 'not-supported') {
+        setSpeechNotice(t.voiceNotSupported);
+      } else if (err === 'permission-denied') {
+        setSpeechNotice(t.voicePermissionDenied);
+      } else {
+        setSpeechNotice(t.voiceAudioError);
+      }
+      setTimeout(() => setSpeechNotice(null), 5000);
+    },
+  });
+
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      setSpeechNotice(null);
+      startListening(speechLanguage);
+    }
+  };
+
+  const handleSpeechLanguageSwitch = (lang: SpeechLanguage) => {
+    setSpeechLanguage(lang);
+    if (isListening) {
+      stopListening();
+      setTimeout(() => startListening(lang), 200);
+    }
+  };
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -73,6 +133,11 @@ export const KrishiChatbot: React.FC<KrishiChatbotProps> = ({ language, isOpen, 
   }, [messages, isOpen, isMinimized]);
 
   const handleSendMessage = async (customText?: string) => {
+    if (isListening) {
+      stopListening();
+    }
+    resetTranscript();
+
     const textToSend = customText || inputPrompt;
     if (!textToSend.trim() || isLoading) return;
 
@@ -345,31 +410,159 @@ export const KrishiChatbot: React.FC<KrishiChatbotProps> = ({ language, isOpen, 
               ))}
             </div>
 
-            {/* Message Input Box */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-              }}
-              className="p-3 bg-white border-t border-stone-200 flex items-center gap-2 shrink-0"
-            >
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputPrompt}
-                onChange={(e) => setInputPrompt(e.target.value)}
-                placeholder={language === 'kn' ? 'ಕೃಷಿ ಪ್ರಶ್ನೆ ಕೇಳಿ (ಕನ್ನಡ ಅಥವಾ English)...' : 'Ask agricultural question or locate RSK/Mandi...'}
-                disabled={isLoading}
-                className="flex-1 px-3.5 py-2.5 rounded-xl border border-stone-300 text-xs sm:text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent"
-              />
-              <button
-                type="submit"
-                disabled={!inputPrompt.trim() || isLoading}
-                className="p-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 disabled:bg-stone-300 text-white transition-colors shadow-sm"
+            {/* Voice Recognition Active Listening / Error Banner */}
+            {isListening && (
+              <div className="bg-red-50 border-t border-red-200 px-3 py-2 flex items-center justify-between gap-2 text-xs text-red-800 animate-pulse">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping" />
+                  <span className="font-semibold">
+                    {t.voiceListening} ({speechLanguage === 'kn-IN' ? 'ಕನ್ನಡ' : 'English'})
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={stopListening}
+                  className="px-2 py-0.5 rounded bg-red-600 text-white font-bold text-[11px] hover:bg-red-700 transition-colors"
+                >
+                  {t.voiceStop}
+                </button>
+              </div>
+            )}
+
+            {speechNotice && (
+              <div className="bg-amber-50 border-t border-amber-200 px-3 py-1.5 flex items-center gap-2 text-xs text-amber-900">
+                <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                <span className="text-[11px] flex-1">{speechNotice}</span>
+                <button
+                  type="button"
+                  onClick={() => setSpeechNotice(null)}
+                  className="text-amber-700 hover:text-amber-900 font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Message Input Box with Web Speech Voice Controls */}
+            <div className="p-3 bg-white border-t border-stone-200 flex flex-col gap-2 shrink-0">
+              {/* Language toggle for Voice Recognition */}
+              <div className="flex items-center justify-between text-[11px] text-stone-500">
+                <div className="flex items-center gap-1.5">
+                  <Volume2 className="w-3.5 h-3.5 text-emerald-700" />
+                  <span className="font-medium text-stone-600">
+                    {language === 'kn' ? 'ಧ್ವನಿ ಭಾಷೆ (Voice Input):' : 'Voice Input Language:'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1 bg-stone-100 p-0.5 rounded-lg border border-stone-200">
+                  <button
+                    type="button"
+                    onClick={() => handleSpeechLanguageSwitch('kn-IN')}
+                    className={`px-2 py-0.5 rounded-md font-bold transition-colors ${
+                      speechLanguage === 'kn-IN'
+                        ? 'bg-emerald-800 text-white shadow-2xs'
+                        : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200'
+                    }`}
+                    title="Speak in Kannada"
+                  >
+                    ಕನ್ನಡ (kn-IN)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSpeechLanguageSwitch('en-IN')}
+                    className={`px-2 py-0.5 rounded-md font-bold transition-colors ${
+                      speechLanguage === 'en-IN'
+                        ? 'bg-emerald-800 text-white shadow-2xs'
+                        : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200'
+                    }`}
+                    title="Speak in Indian English"
+                  >
+                    English (en-IN)
+                  </button>
+                </div>
+              </div>
+
+              {/* Form Input + Mic Button + Send */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendMessage();
+                }}
+                className="flex items-center gap-2"
               >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
+                <div className="relative flex-1">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={inputPrompt}
+                    onChange={(e) => setInputPrompt(e.target.value)}
+                    placeholder={
+                      isListening
+                        ? (speechLanguage === 'kn-IN' ? 'ಮಾತನಾಡಿ, ಧ್ವನಿ ದಾಖಲಾಗುತ್ತಿದೆ...' : 'Speaking... converting voice to text...')
+                        : (language === 'kn'
+                          ? 'ಕೃಷಿ ಪ್ರಶ್ನೆ ಕೇಳಿ ಅಥವಾ ಧ್ವನಿ ಬಟನ್ ಒತ್ತಿ...'
+                          : 'Ask farming question or use microphone...')
+                    }
+                    disabled={isLoading}
+                    className={`w-full pl-3.5 pr-8 py-2.5 rounded-xl border text-xs sm:text-sm text-stone-800 focus:outline-none transition-all ${
+                      isListening
+                        ? 'border-red-400 bg-red-50/40 ring-2 ring-red-400/40'
+                        : 'border-stone-300 focus:ring-2 focus:ring-emerald-600 focus:border-transparent'
+                    }`}
+                  />
+                  {inputPrompt && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInputPrompt('');
+                        resetTranscript();
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-0.5"
+                      title="Clear text"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Voice-to-Text Microphone Button */}
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  disabled={isLoading}
+                  className={`p-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center shrink-0 ${
+                    isListening
+                      ? 'bg-red-600 text-white ring-4 ring-red-300 animate-pulse hover:bg-red-700'
+                      : isSpeechSupported
+                      ? 'bg-stone-100 text-stone-700 hover:bg-emerald-100 hover:text-emerald-900 border border-stone-300'
+                      : 'bg-stone-100 text-stone-400 cursor-not-allowed opacity-60'
+                  }`}
+                  title={
+                    isListening
+                      ? t.voiceStop
+                      : speechLanguage === 'kn-IN'
+                      ? t.voiceListenKn
+                      : t.voiceListenEn
+                  }
+                >
+                  {isListening ? (
+                    <MicOff className="w-4 h-4 text-white" />
+                  ) : (
+                    <Mic className="w-4 h-4" />
+                  )}
+                </button>
+
+                {/* Submit button */}
+                <button
+                  type="submit"
+                  disabled={!inputPrompt.trim() || isLoading}
+                  className="p-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 disabled:bg-stone-300 text-white transition-colors shadow-sm shrink-0"
+                  title="Send message"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </form>
+            </div>
           </>
         )}
       </div>

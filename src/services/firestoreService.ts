@@ -9,7 +9,7 @@ import {
   orderBy 
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { DiagnosisResult, Scheme } from '../types';
+import { DiagnosisResult, Scheme, CropTrackerRecord } from '../types';
 
 export interface SavedSchemeItem {
   schemeId: string;
@@ -138,5 +138,80 @@ export async function removeSavedSchemeFromFirestore(userId: string, schemeId: s
     await deleteDoc(doc(db, 'users', userId, 'savedSchemes', schemeId));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, docPath);
+  }
+}
+
+// Save or sync a crop growth tracker to Firestore
+export async function saveGrowthTrackerToFirestore(userId: string, record: CropTrackerRecord): Promise<void> {
+  const collectionPath = `users/${userId}/growthTrackers`;
+  const docRef = doc(db, collectionPath, record.id);
+
+  try {
+    const sanitized: CropTrackerRecord = {
+      id: record.id,
+      userId,
+      cropId: record.cropId,
+      cropNameEn: record.cropNameEn,
+      cropNameKn: record.cropNameKn,
+      emoji: record.emoji || '🌱',
+      plotName: record.plotName || 'Plot 1',
+      plantingDate: record.plantingDate,
+      varietyOrType: record.varietyOrType || '',
+      areaAcreage: record.areaAcreage || '',
+      method: record.method || 'direct_seed',
+      notes: record.notes || '',
+      createdAt: record.createdAt || new Date().toISOString(),
+      reminders: record.reminders || [],
+    };
+
+    await setDoc(docRef, sanitized, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, collectionPath);
+  }
+}
+
+// Fetch all growth trackers for a user from Firestore
+export async function fetchGrowthTrackersFromFirestore(userId: string): Promise<CropTrackerRecord[]> {
+  const collectionPath = `users/${userId}/growthTrackers`;
+
+  try {
+    const q = query(collection(db, collectionPath), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+
+    const trackers: CropTrackerRecord[] = [];
+    snapshot.forEach((d) => {
+      trackers.push(d.data() as CropTrackerRecord);
+    });
+
+    return trackers;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, collectionPath);
+    return [];
+  }
+}
+
+// Delete a growth tracker from Firestore
+export async function deleteGrowthTrackerFromFirestore(userId: string, trackerId: string): Promise<void> {
+  const docPath = `users/${userId}/growthTrackers/${trackerId}`;
+
+  try {
+    await deleteDoc(doc(db, 'users', userId, 'growthTrackers', trackerId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, docPath);
+  }
+}
+
+// Update a growth tracker in Firestore (e.g. toggle reminder or change plot details)
+export async function updateGrowthTrackerInFirestore(
+  userId: string, 
+  trackerId: string, 
+  updates: Partial<CropTrackerRecord>
+): Promise<void> {
+  const docPath = `users/${userId}/growthTrackers/${trackerId}`;
+
+  try {
+    await updateDoc(doc(db, 'users', userId, 'growthTrackers', trackerId), updates);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, docPath);
   }
 }

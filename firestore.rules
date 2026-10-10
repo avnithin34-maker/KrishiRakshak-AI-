@@ -55,6 +55,19 @@ service cloud.firestore {
           && request.resource.data.userId == userId;
         allow delete: if isOwner(userId) && isValidId(schemeId);
       }
+
+      // Crop growth trackers subcollection
+      match /growthTrackers/{trackerId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(trackerId)
+          && request.resource.data.keys().hasAll(['id', 'userId', 'cropId', 'plantingDate'])
+          && request.resource.data.userId == userId
+          && request.resource.data.id is string && request.resource.data.id.size() <= 128
+          && request.resource.data.cropId is string && request.resource.data.cropId.size() <= 50;
+        allow update: if isOwner(userId) && isValidId(trackerId)
+          && request.resource.data.userId == userId;
+        allow delete: if isOwner(userId) && isValidId(trackerId);
+      }
     }
   }
 }
